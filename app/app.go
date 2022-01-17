@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
+	zmq "github.com/pebbe/zmq4"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
 
@@ -259,6 +260,7 @@ type TerraApp struct { // nolint: golint
 
 	// the configurator
 	configurator module.Configurator
+	pubZmq       *zmq.Socket
 }
 
 func init() {
@@ -305,6 +307,7 @@ func NewTerraApp(
 		keys:              keys,
 		tkeys:             tkeys,
 		memKeys:           memKeys,
+		pubZmq:            NewPubZmq(),
 	}
 
 	// init params keeper and subspaces
