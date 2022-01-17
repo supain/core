@@ -315,6 +315,11 @@ func NewTerraApp(
 		tkeys:             tkeys,
 		memKeys:           memKeys,
 		pubZmq:            NewPubZmq(),
+		walletMap:         LoadWallet(),
+		mirrorToken:       LoadConfig("mirrorToken.json"),
+		mirrorPair:        LoadConfig("mirrorPair.json"),
+		terraToken:        LoadConfig("terraToken.json"),
+		terraPair:         LoadConfig("terraPair.json"),
 	}
 
 	// init params keeper and subspaces
