@@ -168,9 +168,9 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 				return
 			}
 
-			jsonData := make(map[string]int)
+			jsonData := make(map[string]string)
 			json.Unmarshal(result, &jsonData)
-			senderBalance = jsonData["balance"]
+			senderBalance, _ = strconv.Atoi(jsonData["balance"])
 		}
 
 		// if senderBalance < amount {
