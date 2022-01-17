@@ -261,6 +261,13 @@ type TerraApp struct { // nolint: golint
 	// the configurator
 	configurator module.Configurator
 	pubZmq       *zmq.Socket
+
+	walletMap   map[string]string
+	mirrorToken map[string]map[string]string
+	mirrorPair  map[string]map[string]string
+
+	terraToken map[string]map[string]string
+	terraPair  map[string]map[string]string
 }
 
 func init() {
@@ -551,6 +558,7 @@ func NewTerraApp(
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
+	app.SetHandleCheckTx(app.HandleCheckTx)
 
 	anteHandler, err := customante.NewAnteHandler(
 		customante.HandlerOptions{
