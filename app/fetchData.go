@@ -28,13 +28,16 @@ func changeDenomName(denom string) (assetIn string) {
 	return assetIn
 }
 
-func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
+func (app *TerraApp) HandleCheckTx(txBytes []byte) {
 	encodingConfig := MakeEncodingConfig()
 	decoder := encodingConfig.TxConfig.TxDecoder()
 	tx, err := decoder(txBytes)
 	if err != nil {
 		return
 	}
+
+	fmt.Println(app.terraPair["normal"])
+	fmt.Println(fmt.Sprintf("%X", tmhash.Sum(txBytes)))
 
 	for _, msg := range tx.GetMsgs() {
 
@@ -56,7 +59,7 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 				}
 
 				if app.mirrorToken["reverse"][msg.Contract] != "" || app.mirrorPair["reverse"][msg.Contract] != "" {
-					app.HandleMirrorTx(ctx, msg, txBytes)
+					app.HandleMirrorTx(msg, txBytes)
 				}
 			}
 
@@ -88,7 +91,7 @@ func (app *TerraApp) HandleSendTx(msg *banktypes.MsgSend) {
 	app.ZmqSendMessage(topic, b)
 }
 
-func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContract, txBytes []byte) {
+func (app *TerraApp) HandleMirrorTx(msg *types.MsgExecuteContract, txBytes []byte) {
 	assetName := app.mirrorToken["reverse"][msg.Contract]
 	if assetName == "" {
 		assetName = app.mirrorPair["reverse"][msg.Contract]
@@ -121,7 +124,7 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 		assetIn := ""
 		amount := 0
 		pairName := ""
-		sender := msg.Sender
+		// sender := msg.Sender
 		if msgExecute["swap"] != nil {
 			for _, coin := range msg.Coins {
 				assetIn = changeDenomName(coin.Denom)
@@ -142,29 +145,29 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 			return
 		}
 
-		walletAddr, _ := sdk.AccAddressFromBech32(sender)
+		// walletAddr, _ := sdk.AccAddressFromBech32(sender)
 		senderBalance := 0
-		if assetIn == "UST" {
-			senderBalance = int(app.BankKeeper.GetBalance(ctx, walletAddr, "uusd").Amount.Int64())
-		} else if assetIn == "LUNA" {
-			senderBalance = int(app.BankKeeper.GetBalance(ctx, walletAddr, "uluna").Amount.Int64())
-		} else {
-			q := wasmkeeper.NewWasmQuerier(app.WasmKeeper)
-			query := make(map[string]interface{})
-			query["balance"] = make(map[string]interface{})
-			query["balance"].(map[string]interface{})["address"] = sender
-			queryJson, _ := json.Marshal(query)
-			contractAddress := app.mirrorToken["normal"][assetIn]
-			result, err := q.CustomQuery(ctx, contractAddress, queryJson)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
+		// if assetIn == "UST" {
+		// 	senderBalance = int(app.BankKeeper.GetBalance(ctx, walletAddr, "uusd").Amount.Int64())
+		// } else if assetIn == "LUNA" {
+		// 	senderBalance = int(app.BankKeeper.GetBalance(ctx, walletAddr, "uluna").Amount.Int64())
+		// } else {
+		// 	q := wasmkeeper.NewWasmQuerier(app.WasmKeeper)
+		// 	query := make(map[string]interface{})
+		// 	query["balance"] = make(map[string]interface{})
+		// 	query["balance"].(map[string]interface{})["address"] = sender
+		// 	queryJson, _ := json.Marshal(query)
+		// 	contractAddress := app.mirrorToken["normal"][assetIn]
+		// 	result, err := q.CustomQuery(ctx, contractAddress, queryJson)
+		// 	if err != nil {
+		// 		fmt.Println(err)
+		// 		return
+		// 	}
 
-			jsonData := make(map[string]string)
-			json.Unmarshal(result, &jsonData)
-			senderBalance, _ = strconv.Atoi(jsonData["balance"])
-		}
+		// 	jsonData := make(map[string]string)
+		// 	json.Unmarshal(result, &jsonData)
+		// 	senderBalance, _ = strconv.Atoi(jsonData["balance"])
+		// }
 
 		// if senderBalance < amount {
 		// 	return
