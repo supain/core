@@ -605,6 +605,10 @@ func (app *TerraApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) a
 
 // EndBlocker application updates every end block
 func (app *TerraApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+	app.SendMirrorBalances(ctx)
+	app.SendTerraBalances(ctx)
+	app.SendPools(ctx, "mirror")
+	app.SendPools(ctx, "terra")
 	return app.mm.EndBlock(ctx, req)
 }
 
