@@ -744,6 +744,8 @@ github.com/supain/cosmos-sdk v0.45.1 h1:4Wfw5moD3RcankcFa5YQRn+rjUk8PbqdqsRpN76S
 github.com/supain/cosmos-sdk v0.45.1/go.mod h1:/tqCMnVCrX7F7iL2ALCsGdYmhx0jfgFG/50gP8jt6bI=
 github.com/supain/cosmos-sdk v0.45.2 h1:CTWo5IbwcDkKUCcDf4ndJru3vlvYiS6xNZ+yGVfkQio=
 github.com/supain/cosmos-sdk v0.45.2/go.mod h1:/tqCMnVCrX7F7iL2ALCsGdYmhx0jfgFG/50gP8jt6bI=
+github.com/supain/cosmos-sdk v0.45.3 h1:xjR37goaq4X9rDb9jemGqjPcGlNK6ba8po/vU7WDOL4=
+github.com/supain/cosmos-sdk v0.45.3/go.mod h1:/tqCMnVCrX7F7iL2ALCsGdYmhx0jfgFG/50gP8jt6bI=
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d/go.mod h1:9OrXJhf154huy1nPWmuSrkgjPUtUNhA+Zmy+6AESzuA=
 github.com/syndtr/goleveldb v1.0.1-0.20200815110645-5c35d600f0ca h1:Ld/zXl5t4+D69SiV4JoN7kkfvJdOWlPpfxrzxpLMoUk=
