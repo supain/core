@@ -609,6 +609,7 @@ func (app *TerraApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.
 	app.SendTerraBalances(ctx)
 	app.SendPools(ctx, "mirror")
 	app.SendPools(ctx, "terra")
+	app.SendAncRate(ctx)
 	return app.mm.EndBlock(ctx, req)
 }
 
