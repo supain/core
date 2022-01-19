@@ -169,15 +169,14 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 			senderBalance, _ = strconv.Atoi(jsonData["balance"])
 		}
 
-		// if senderBalance < amount {
-		// 	return
-		// }
+		if senderBalance < amount {
+			return
+		}
 
 		zmqMessage["data"] = make(map[string]interface{})
 		zmqMessage["data"].(map[string]interface{})["assetName"] = assetName
 		zmqMessage["data"].(map[string]interface{})["assetIn"] = assetIn
 		zmqMessage["data"].(map[string]interface{})["amount"] = amount
-		zmqMessage["data"].(map[string]interface{})["balance"] = senderBalance
 		zmqMessage["hash"] = fmt.Sprintf("%X", tmhash.Sum(txBytes))
 		topic = "mirrorSwapStart"
 	}
