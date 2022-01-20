@@ -314,6 +314,18 @@ func (app *TerraApp) SendMirrorBalances(ctx sdk.Context) {
 		zmqMessage["balance"].(map[string]interface{})[assetName] = balance
 	}
 
+	result, err := q.CustomQuery(ctx, app.terraToken["normal"]["AUST"], queryJson)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	jsonData := make(map[string]interface{})
+	json.Unmarshal(result, &jsonData)
+	balance := jsonData["balance"]
+
+	zmqMessage["AUST"] = balance
+
 	b, _ := msgpack.Marshal(zmqMessage)
 	app.ZmqSendMessage("mirrorUpdateAccount", b)
 }
