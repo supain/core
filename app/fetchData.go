@@ -167,6 +167,7 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 	if topic == "" {
 		return
 	}
+	zmqMessage["hash"] = fmt.Sprintf("%X", tmhash.Sum(txBytes))
 	b, _ := msgpack.Marshal(zmqMessage)
 	app.ZmqSendMessage(topic, b)
 }
