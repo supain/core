@@ -182,7 +182,7 @@ func extractPriceAndSpread(msg string) (string, string) {
 	temp := make(map[string]map[string]string)
 	json.Unmarshal(sDec, &temp)
 	swapMsg := temp["swap"]
-	return swapMsg["belief_price"], swapMsg["spread"]
+	return swapMsg["belief_price"], swapMsg["max_spread"]
 }
 
 func (app *TerraApp) checkBalance(ctx sdk.Context, assetIn, sender string, amount int) bool {
