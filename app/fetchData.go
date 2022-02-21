@@ -128,12 +128,12 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 			topic = "mirrorSwapStart"
 		}
 	} else if msgExecute["send"] != nil {
-		obj := msgExecute["send"].(map[string]string)
-		contract := obj["contract"]
+		obj := msgExecute["send"].(map[string]interface{})
+		contract := obj["contract"].(string)
 		assetName := app.mirrorToken["reverse"][msg.Contract]
 		pairName := app.mirrorPair["reverse"][contract]
 		if pairName != "" && strings.Contains(pairName, assetName) {
-			amount, _ = strconv.Atoi(obj["amount"])
+			amount, _ = strconv.Atoi(obj["amount"].(string))
 
 			if msg.Sender == app.GetWallets()["mirrorEnemy"] {
 				zmqMessage["assetName"] = pairName
@@ -142,7 +142,7 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 				if !app.checkBalance(ctx, assetName, msg.Sender, amount) {
 					return
 				}
-				price, spread := extractPriceAndSpread(obj["msg"])
+				price, spread := extractPriceAndSpread(obj["msg"].(string))
 				zmqMessage["data"] = make(map[string]interface{})
 				zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
 				zmqMessage["data"].(map[string]interface{})["assetIn"] = pairName
