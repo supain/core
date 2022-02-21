@@ -54,6 +54,7 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 			} else if msg.Contract == app.GetWallets()["astroFactory"] {
 				app.HandleFactorySwapTx(msg, txBytes, "astro")
 			} else {
+
 				if app.terraToken["reverse"][msg.Contract] != "" || app.terraPair["reverse"][msg.Contract] != "" {
 					app.HandleTerraTx(msg, txBytes)
 				}
@@ -92,7 +93,6 @@ func (app *TerraApp) HandleSendTx(msg *banktypes.MsgSend) {
 }
 
 func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContract, txBytes []byte) {
-
 	amount := 0
 
 	topic := ""
@@ -123,15 +123,17 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 			zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
 			zmqMessage["data"].(map[string]interface{})["assetIn"] = assetIn
 			zmqMessage["data"].(map[string]interface{})["amount"] = amount
+			zmqMessage["data"].(map[string]interface{})["maxSpread"] = msgExecute["swap"].(map[string]interface{})["max_spread"]
+			zmqMessage["data"].(map[string]interface{})["price"] = msgExecute["swap"].(map[string]interface{})["belief_price"]
 			topic = "mirrorSwapStart"
 		}
 	} else if msgExecute["send"] != nil {
-		obj := msgExecute["send"].(map[string]interface{})
-		contract := obj["contract"].(string)
+		obj := msgExecute["send"].(map[string]string)
+		contract := obj["contract"]
 		assetName := app.mirrorToken["reverse"][msg.Contract]
 		pairName := app.mirrorPair["reverse"][contract]
 		if pairName != "" && strings.Contains(pairName, assetName) {
-			amount, _ = strconv.Atoi(obj["amount"].(string))
+			amount, _ = strconv.Atoi(obj["amount"])
 
 			if msg.Sender == app.GetWallets()["mirrorEnemy"] {
 				zmqMessage["assetName"] = pairName
@@ -140,10 +142,13 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 				if !app.checkBalance(ctx, assetName, msg.Sender, amount) {
 					return
 				}
+				price, spread := extractPriceAndSpread(obj["msg"])
 				zmqMessage["data"] = make(map[string]interface{})
 				zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
 				zmqMessage["data"].(map[string]interface{})["assetIn"] = pairName
 				zmqMessage["data"].(map[string]interface{})["amount"] = amount
+				zmqMessage["data"].(map[string]interface{})["maxSpread"] = spread
+				zmqMessage["data"].(map[string]interface{})["price"] = price
 				topic = "mirrorSwapStart"
 			}
 		} else {
@@ -170,6 +175,14 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 	zmqMessage["hash"] = fmt.Sprintf("%X", tmhash.Sum(txBytes))
 	b, _ := msgpack.Marshal(zmqMessage)
 	app.ZmqSendMessage(topic, b)
+}
+
+func extractPriceAndSpread(msg string) (string, string) {
+	sDec, _ := base64.StdEncoding.DecodeString(msg)
+	temp := make(map[string]map[string]string)
+	json.Unmarshal(sDec, &temp)
+	swapMsg := temp["swap"]
+	return swapMsg["belief_price"], swapMsg["spread"]
 }
 
 func (app *TerraApp) checkBalance(ctx sdk.Context, assetIn, sender string, amount int) bool {
