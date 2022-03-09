@@ -323,7 +323,7 @@ func (app *TerraApp) HandleMintTx(msg *types.MsgExecuteContract, txBytes []byte)
 	}
 
 	address := obj.(map[string]interface{})["info"].(map[string]interface{})["token"].(map[string]interface{})["contract_addr"].(string)
-	pairName := app.terraToken["reverse"][address]
+	pairName := app.mirrorToken["reverse"][address]
 	if pairName == "" {
 		return
 	}
