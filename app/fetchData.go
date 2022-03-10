@@ -54,7 +54,7 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 			} else if msg.Contract == app.GetWallets()["astroFactory"] {
 				app.HandleFactorySwapTx(msg, txBytes, "astro")
 			} else if msg.Contract == app.GetWallets()["mintContract"] {
-
+				app.HandleMintTx(msg, txBytes)
 			} else {
 
 				if app.terraToken["reverse"][msg.Contract] != "" || app.terraPair["reverse"][msg.Contract] != "" {
