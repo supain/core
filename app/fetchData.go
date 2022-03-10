@@ -64,6 +64,10 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 				if app.mirrorToken["reverse"][msg.Contract] != "" || app.mirrorPair["reverse"][msg.Contract] != "" {
 					app.HandleMirrorTx(ctx, msg, txBytes)
 				}
+
+				if msg.Contract == app.terraToken["normal"]["AUST"] {
+
+				}
 			}
 
 			if msg.Contract == app.GetWallets()["terraEnemy"] {
@@ -337,8 +341,49 @@ func (app *TerraApp) HandleMintTx(msg *types.MsgExecuteContract, txBytes []byte)
 	zmqMessage["data"].(map[string]interface{})["amount"] = amount
 	zmqMessage["data"].(map[string]interface{})["maxSpread"] = "1"
 	zmqMessage["data"].(map[string]interface{})["price"] = "0"
+	zmqMessage["hash"] = fmt.Sprintf("%X", tmhash.Sum(txBytes))
 	zmqMessage["type"] = "mint"
 	topic := "mirrorSwapStart"
+
+	b, _ := msgpack.Marshal(zmqMessage)
+	app.ZmqSendMessage(topic, b)
+
+}
+
+func (app *TerraApp) HandleMintAndSwapTx(msg *types.MsgExecuteContract, txBytes []byte) {
+
+	data, _ := msg.ExecuteMsg.MarshalJSON()
+
+	msgExecute := make(map[string]interface{})
+	json.Unmarshal(data, &msgExecute)
+	if msgExecute["send"] == nil {
+		return
+	}
+
+	obj := msgExecute["send"].(map[string]interface{})
+	if obj["contract"].(string) != app.GetWallets()["mintContract"] {
+		return
+	}
+
+	// if msgExecute["mint"] == nil {
+	// 	return
+	// }
+	// obj := msgExecute["mint"].(map[string]interface{})["asset"]
+	// if obj == nil {
+	// 	return
+	// }
+
+	// address := obj.(map[string]interface{})["info"].(map[string]interface{})["token"].(map[string]interface{})["contract_addr"].(string)
+	// pairName := app.mirrorToken["reverse"][address]
+	// if pairName == "" {
+	// 	return
+	// }
+
+	// amount, _ := strconv.Atoi(obj.(map[string]interface{})["amount"].(string))
+
+	zmqMessage := make(map[string]interface{})
+	zmqMessage["msg"] = obj["msg"]
+	topic := "mintAndSwap"
 
 	b, _ := msgpack.Marshal(zmqMessage)
 	app.ZmqSendMessage(topic, b)
