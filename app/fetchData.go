@@ -392,15 +392,15 @@ func (app *TerraApp) getAncRate(ctx sdk.Context) float64 {
 func (app *TerraApp) getMirrorOraclePrice(ctx sdk.Context, address string) float64 {
 	query := make(map[string]interface{})
 	query["price"] = make(map[string]interface{})
-	query["price"].(map[string]string)["base_asset"] = address
-	query["price"].(map[string]string)["quote_asset"] = "uusd"
+	query["price"].(map[string]interface{})["base_asset"] = address
+	query["price"].(map[string]interface{})["quote_asset"] = "uusd"
 	queryJson, _ := json.Marshal(query)
 
 	q := wasmkeeper.NewWasmQuerier(app.WasmKeeper)
 	result, _ := q.CustomQuery(ctx, app.GetWallets()["mirrorOracle"], queryJson)
 	jsonData := make(map[string]interface{})
 	json.Unmarshal(result, &jsonData)
-	oraclePrice, _ := strconv.ParseFloat(jsonData["price_response"].(map[string]interface{})["rate"].(string), 64)
+	oraclePrice, _ := strconv.ParseFloat(jsonData["rate"].(string), 64)
 	return oraclePrice
 }
 
