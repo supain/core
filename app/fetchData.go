@@ -36,9 +36,6 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 		return
 	}
 
-	// fmt.Println(app.terraPair["normal"])
-	// fmt.Println(fmt.Sprintf("%X", tmhash.Sum(txBytes)))
-
 	for _, msg := range tx.GetMsgs() {
 
 		switch msg := msg.(type) {
@@ -54,7 +51,8 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 			} else if msg.Contract == app.GetWallets()["astroFactory"] {
 				app.HandleFactorySwapTx(msg, txBytes, "astro")
 			} else if msg.Contract == app.GetWallets()["mintContract"] {
-				app.HandleMintTx(msg, txBytes)
+				data, _ := msg.ExecuteMsg.MarshalJSON()
+				app.HandleMintTx(ctx, data, txBytes)
 			} else {
 
 				if app.terraToken["reverse"][msg.Contract] != "" || app.terraPair["reverse"][msg.Contract] != "" {
@@ -66,6 +64,17 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 				}
 
 				if msg.Contract == app.terraToken["normal"]["AUST"] {
+					data, _ := msg.ExecuteMsg.MarshalJSON()
+
+					msgExecute := make(map[string]interface{})
+					json.Unmarshal(data, &msgExecute)
+					if msgExecute["send"] == nil {
+						return
+					}
+
+					msg := msgExecute["send"].(map[string]interface{})["msg"].(string)
+					decodedData, _ := base64.StdEncoding.DecodeString(msg)
+					app.HandleMintTx(ctx, decodedData, txBytes)
 
 				}
 			}
@@ -312,82 +321,87 @@ func (app *TerraApp) HandleFactorySwapTx(msg *types.MsgExecuteContract, txBytes 
 	app.ZmqSendMessage(topic, b)
 }
 
-func (app *TerraApp) HandleMintTx(msg *types.MsgExecuteContract, txBytes []byte) {
-
-	data, _ := msg.ExecuteMsg.MarshalJSON()
-
+func (app *TerraApp) HandleMintTx(ctx sdk.Context, data, txBytes []byte) {
 	msgExecute := make(map[string]interface{})
 	json.Unmarshal(data, &msgExecute)
-	if msgExecute["mint"] == nil {
-		return
-	}
-	obj := msgExecute["mint"].(map[string]interface{})["asset"]
-	if obj == nil {
+	if msgExecute["open_position"] == nil {
 		return
 	}
 
-	address := obj.(map[string]interface{})["info"].(map[string]interface{})["token"].(map[string]interface{})["contract_addr"].(string)
-	pairName := app.mirrorToken["reverse"][address]
+	openPosition := msgExecute["open_position"].(map[string]interface{})
+	collateralRatio, _ := strconv.ParseFloat(openPosition["collateral_ratio"].(string), 64)
+	assetAddr := openPosition["asset_info"].(map[string]interface{})["token"].(map[string]interface{})["contract_addr"].(string)
+	pairName := app.mirrorToken["reverse"][assetAddr]
 	if pairName == "" {
 		return
 	}
 
-	amount, _ := strconv.Atoi(obj.(map[string]interface{})["amount"].(string))
+	collateralAmount, _ := strconv.ParseFloat(openPosition["collateral"].(map[string]interface{})["amount"].(string), 64)
+	collateralAmount /= collateralRatio
+	collateralInfo := openPosition["collateral"].(map[string]interface{})["info"].(map[string]interface{})
+	if collateralInfo["token"] != nil {
+		tokenAddr := collateralInfo["token"].(map[string]interface{})["contract_addr"].(string)
+		collateralAsset := app.terraToken["reverse"][tokenAddr]
+		if collateralAsset != "AUST" {
+			collateralAsset = app.mirrorToken["reverse"][tokenAddr]
+			if collateralAsset == "" {
+				return
+			}
+
+			oraclePrice := app.getMirrorOraclePrice(ctx, tokenAddr)
+			collateralAmount *= oraclePrice
+		} else {
+			ancRate := app.getAncRate(ctx)
+			collateralAmount *= ancRate
+		}
+	}
+
+	oraclePrice := app.getMirrorOraclePrice(ctx, assetAddr)
+	amount := collateralAmount / oraclePrice
+	assetAmount := int(amount)
 
 	zmqMessage := make(map[string]interface{})
 	zmqMessage["data"] = make(map[string]interface{})
 	zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
 	zmqMessage["data"].(map[string]interface{})["assetIn"] = pairName
-	zmqMessage["data"].(map[string]interface{})["amount"] = amount
+	zmqMessage["data"].(map[string]interface{})["amount"] = assetAmount
 	zmqMessage["data"].(map[string]interface{})["maxSpread"] = "1"
-	zmqMessage["data"].(map[string]interface{})["price"] = "0"
+	zmqMessage["data"].(map[string]interface{})["price"] = "1"
 	zmqMessage["hash"] = fmt.Sprintf("%X", tmhash.Sum(txBytes))
 	zmqMessage["type"] = "mint"
 	topic := "mirrorSwapStart"
 
 	b, _ := msgpack.Marshal(zmqMessage)
 	app.ZmqSendMessage(topic, b)
-
 }
 
-func (app *TerraApp) HandleMintAndSwapTx(msg *types.MsgExecuteContract, txBytes []byte) {
+func (app *TerraApp) getAncRate(ctx sdk.Context) float64 {
+	query := make(map[string]interface{})
+	query["epoch_state"] = make(map[string]interface{})
 
-	data, _ := msg.ExecuteMsg.MarshalJSON()
+	queryJson, _ := json.Marshal(query)
 
-	msgExecute := make(map[string]interface{})
-	json.Unmarshal(data, &msgExecute)
-	if msgExecute["send"] == nil {
-		return
-	}
+	q := wasmkeeper.NewWasmQuerier(app.WasmKeeper)
+	result, _ := q.CustomQuery(ctx, app.GetWallets()["ancContract"], queryJson)
+	jsonData := make(map[string]interface{})
+	json.Unmarshal(result, &jsonData)
+	ancRate, _ := strconv.ParseFloat(jsonData["exchange_rate"].(string), 64)
+	return ancRate
+}
 
-	obj := msgExecute["send"].(map[string]interface{})
-	if obj["contract"].(string) != app.GetWallets()["mintContract"] {
-		return
-	}
+func (app *TerraApp) getMirrorOraclePrice(ctx sdk.Context, address string) float64 {
+	query := make(map[string]interface{})
+	query["price"] = make(map[string]interface{})
+	query["price"].(map[string]string)["base_asset"] = address
+	query["price"].(map[string]string)["quote_asset"] = "uusd"
+	queryJson, _ := json.Marshal(query)
 
-	// if msgExecute["mint"] == nil {
-	// 	return
-	// }
-	// obj := msgExecute["mint"].(map[string]interface{})["asset"]
-	// if obj == nil {
-	// 	return
-	// }
-
-	// address := obj.(map[string]interface{})["info"].(map[string]interface{})["token"].(map[string]interface{})["contract_addr"].(string)
-	// pairName := app.mirrorToken["reverse"][address]
-	// if pairName == "" {
-	// 	return
-	// }
-
-	// amount, _ := strconv.Atoi(obj.(map[string]interface{})["amount"].(string))
-
-	zmqMessage := make(map[string]interface{})
-	zmqMessage["msg"] = obj["msg"]
-	topic := "mintAndSwap"
-
-	b, _ := msgpack.Marshal(zmqMessage)
-	app.ZmqSendMessage(topic, b)
-
+	q := wasmkeeper.NewWasmQuerier(app.WasmKeeper)
+	result, _ := q.CustomQuery(ctx, app.GetWallets()["mirrorOracle"], queryJson)
+	jsonData := make(map[string]interface{})
+	json.Unmarshal(result, &jsonData)
+	oraclePrice, _ := strconv.ParseFloat(jsonData["price_response"].(map[string]interface{})["rate"].(string), 64)
+	return oraclePrice
 }
 
 func (app *TerraApp) SendMirrorBalances(ctx sdk.Context) {
@@ -443,18 +457,9 @@ func (app *TerraApp) SendMirrorBalances(ctx sdk.Context) {
 }
 
 func (app *TerraApp) SendAncRate(ctx sdk.Context) {
-	query := make(map[string]interface{})
-	query["epoch_state"] = make(map[string]interface{})
-
-	queryJson, _ := json.Marshal(query)
-
-	q := wasmkeeper.NewWasmQuerier(app.WasmKeeper)
-	result, _ := q.CustomQuery(ctx, app.GetWallets()["ancContract"], queryJson)
-	jsonData := make(map[string]interface{})
-	json.Unmarshal(result, &jsonData)
-	// exchange_rate := jsonData["exchange_rate"]
+	ancRate := app.getAncRate(ctx)
 	zmqMessage := make(map[string]interface{})
-	zmqMessage["ancRate"] = jsonData
+	zmqMessage["ancRate"] = ancRate
 
 	b, _ := msgpack.Marshal(zmqMessage)
 	app.ZmqSendMessage("ancRate", b)
