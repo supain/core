@@ -355,6 +355,8 @@ func (app *TerraApp) HandleMintTx(ctx sdk.Context, data, txBytes []byte) {
 			collateralAmount *= ancRate
 		}
 	}
+	price := openPosition["short_params"].(map[string]interface{})["belief_price"]
+	maxSpread := openPosition["short_params"].(map[string]interface{})["max_spread"]
 
 	oraclePrice := app.getMirrorOraclePrice(ctx, assetAddr)
 	amount := collateralAmount / oraclePrice
@@ -365,8 +367,8 @@ func (app *TerraApp) HandleMintTx(ctx sdk.Context, data, txBytes []byte) {
 	zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
 	zmqMessage["data"].(map[string]interface{})["assetIn"] = pairName
 	zmqMessage["data"].(map[string]interface{})["amount"] = assetAmount
-	zmqMessage["data"].(map[string]interface{})["maxSpread"] = "1"
-	zmqMessage["data"].(map[string]interface{})["price"] = "1"
+	zmqMessage["data"].(map[string]interface{})["maxSpread"] = maxSpread
+	zmqMessage["data"].(map[string]interface{})["price"] = price
 	zmqMessage["hash"] = fmt.Sprintf("%X", tmhash.Sum(txBytes))
 	zmqMessage["type"] = "mint"
 	topic := "mirrorSwapStart"
