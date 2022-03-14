@@ -329,6 +329,11 @@ func (app *TerraApp) HandleMintTx(ctx sdk.Context, data, txBytes []byte) {
 	msgExecute := make(map[string]interface{})
 	json.Unmarshal(data, &msgExecute)
 	if msgExecute["mint"] != nil {
+		idx := msgExecute["mint"].(map[string]interface{})["position_idx"].(string)
+		if !app.isShortPoistion(ctx, idx) {
+			return
+		}
+
 		asset := msgExecute["mint"].(map[string]interface{})["asset"].(map[string]interface{})
 		tokenContract := asset["info"].(map[string]interface{})["token"].(map[string]interface{})["contract_addr"].(string)
 		pairName = app.mirrorToken["reverse"][tokenContract]
@@ -420,6 +425,20 @@ func (app *TerraApp) getMirrorOraclePrice(ctx sdk.Context, address string) float
 	json.Unmarshal(result, &jsonData)
 	oraclePrice, _ := strconv.ParseFloat(jsonData["rate"].(string), 64)
 	return oraclePrice
+}
+
+func (app *TerraApp) isShortPoistion(ctx sdk.Context, idx string) bool {
+	query := make(map[string]interface{})
+	query["poistion"] = make(map[string]interface{})
+	query["position"].(map[string]interface{})["position_idx"] = idx
+	queryJson, _ := json.Marshal(query)
+
+	q := wasmkeeper.NewWasmQuerier(app.WasmKeeper)
+	result, _ := q.CustomQuery(ctx, app.GetWallets()["mintContract"], queryJson)
+	jsonData := make(map[string]interface{})
+	json.Unmarshal(result, &jsonData)
+	isShort := jsonData["is_short"].(bool)
+	return isShort
 }
 
 func (app *TerraApp) SendMirrorBalances(ctx sdk.Context) {
