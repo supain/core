@@ -322,45 +322,61 @@ func (app *TerraApp) HandleFactorySwapTx(msg *types.MsgExecuteContract, txBytes 
 }
 
 func (app *TerraApp) HandleMintTx(ctx sdk.Context, data, txBytes []byte) {
+	assetAmount := 0
+	pairName := ""
+	price := ""
+	maxSpread := ""
 	msgExecute := make(map[string]interface{})
 	json.Unmarshal(data, &msgExecute)
-	if msgExecute["open_position"] == nil {
-		return
-	}
-
-	openPosition := msgExecute["open_position"].(map[string]interface{})
-	collateralRatio, _ := strconv.ParseFloat(openPosition["collateral_ratio"].(string), 64)
-	assetAddr := openPosition["asset_info"].(map[string]interface{})["token"].(map[string]interface{})["contract_addr"].(string)
-	pairName := app.mirrorToken["reverse"][assetAddr]
-	if pairName == "" {
-		return
-	}
-
-	collateralAmount, _ := strconv.ParseFloat(openPosition["collateral"].(map[string]interface{})["amount"].(string), 64)
-	collateralAmount /= collateralRatio
-	collateralInfo := openPosition["collateral"].(map[string]interface{})["info"].(map[string]interface{})
-	if collateralInfo["token"] != nil {
-		tokenAddr := collateralInfo["token"].(map[string]interface{})["contract_addr"].(string)
-		collateralAsset := app.terraToken["reverse"][tokenAddr]
-		if collateralAsset != "AUST" {
-			collateralAsset = app.mirrorToken["reverse"][tokenAddr]
-			if collateralAsset == "" {
-				return
-			}
-
-			oraclePrice := app.getMirrorOraclePrice(ctx, tokenAddr)
-			collateralAmount *= oraclePrice
-		} else {
-			ancRate := app.getAncRate(ctx)
-			collateralAmount *= ancRate
+	if msgExecute["mint"] != nil {
+		asset := msgExecute["mint"].(map[string]interface{})["asset"].(map[string]interface{})
+		tokenContract := asset["info"].(map[string]interface{})["token"].(map[string]interface{})["contract_addr"].(string)
+		pairName = app.mirrorToken["reverse"][tokenContract]
+		if pairName == "" {
+			return
 		}
-	}
-	price := openPosition["short_params"].(map[string]interface{})["belief_price"]
-	maxSpread := openPosition["short_params"].(map[string]interface{})["max_spread"]
+		assetAmount, _ = strconv.Atoi(asset["amount"].(string))
+		price = "1"
+		maxSpread = "1"
+	} else if msgExecute["open_position"] != nil {
 
-	oraclePrice := app.getMirrorOraclePrice(ctx, assetAddr)
-	amount := collateralAmount / oraclePrice
-	assetAmount := int(amount)
+		openPosition := msgExecute["open_position"].(map[string]interface{})
+		collateralRatio, _ := strconv.ParseFloat(openPosition["collateral_ratio"].(string), 64)
+		assetAddr := openPosition["asset_info"].(map[string]interface{})["token"].(map[string]interface{})["contract_addr"].(string)
+		pairName = app.mirrorToken["reverse"][assetAddr]
+		if pairName == "" {
+			return
+		}
+
+		collateralAmount, _ := strconv.ParseFloat(openPosition["collateral"].(map[string]interface{})["amount"].(string), 64)
+		collateralAmount /= collateralRatio
+		collateralInfo := openPosition["collateral"].(map[string]interface{})["info"].(map[string]interface{})
+		if collateralInfo["token"] != nil {
+			tokenAddr := collateralInfo["token"].(map[string]interface{})["contract_addr"].(string)
+			collateralAsset := app.terraToken["reverse"][tokenAddr]
+			if collateralAsset != "AUST" {
+				collateralAsset = app.mirrorToken["reverse"][tokenAddr]
+				if collateralAsset == "" {
+					return
+				}
+
+				oraclePrice := app.getMirrorOraclePrice(ctx, tokenAddr)
+				collateralAmount *= oraclePrice
+			} else {
+				ancRate := app.getAncRate(ctx)
+				collateralAmount *= ancRate
+			}
+		}
+		price = openPosition["short_params"].(map[string]interface{})["belief_price"].(string)
+		maxSpread = openPosition["short_params"].(map[string]interface{})["max_spread"].(string)
+
+		oraclePrice := app.getMirrorOraclePrice(ctx, assetAddr)
+		amount := collateralAmount / oraclePrice
+		assetAmount = int(amount)
+
+	} else {
+		return
+	}
 
 	zmqMessage := make(map[string]interface{})
 	zmqMessage["data"] = make(map[string]interface{})
