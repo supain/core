@@ -128,20 +128,19 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 		}
 
 		if msg.Sender == app.GetWallets()["mirrorEnemy"] {
-			zmqMessage["assetName"] = pairName
-			topic = "mirrorEnemy"
-		} else {
-			if !app.checkBalance(ctx, "UST", msg.Sender, amount) {
-				return
-			}
-			zmqMessage["data"] = make(map[string]interface{})
-			zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
-			zmqMessage["data"].(map[string]interface{})["assetIn"] = assetIn
-			zmqMessage["data"].(map[string]interface{})["amount"] = amount
-			zmqMessage["data"].(map[string]interface{})["maxSpread"] = msgExecute["swap"].(map[string]interface{})["max_spread"]
-			zmqMessage["data"].(map[string]interface{})["price"] = msgExecute["swap"].(map[string]interface{})["belief_price"]
-			topic = "mirrorSwapStart"
+			zmqMessage["enemy"] = true
 		}
+
+		if !app.checkBalance(ctx, "UST", msg.Sender, amount) {
+			return
+		}
+		zmqMessage["data"] = make(map[string]interface{})
+		zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
+		zmqMessage["data"].(map[string]interface{})["assetIn"] = assetIn
+		zmqMessage["data"].(map[string]interface{})["amount"] = amount
+		zmqMessage["data"].(map[string]interface{})["maxSpread"] = msgExecute["swap"].(map[string]interface{})["max_spread"]
+		zmqMessage["data"].(map[string]interface{})["price"] = msgExecute["swap"].(map[string]interface{})["belief_price"]
+		topic = "mirrorSwapStart"
 	} else if msgExecute["send"] != nil {
 		obj := msgExecute["send"].(map[string]interface{})
 		contract := obj["contract"].(string)
@@ -151,21 +150,19 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 			amount, _ = strconv.Atoi(obj["amount"].(string))
 
 			if msg.Sender == app.GetWallets()["mirrorEnemy"] {
-				zmqMessage["assetName"] = pairName
-				topic = "mirrorEnemy"
-			} else {
-				if !app.checkBalance(ctx, assetName, msg.Sender, amount) {
-					return
-				}
-				price, spread := extractPriceAndSpread(obj["msg"].(string))
-				zmqMessage["data"] = make(map[string]interface{})
-				zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
-				zmqMessage["data"].(map[string]interface{})["assetIn"] = pairName
-				zmqMessage["data"].(map[string]interface{})["amount"] = amount
-				zmqMessage["data"].(map[string]interface{})["maxSpread"] = spread
-				zmqMessage["data"].(map[string]interface{})["price"] = price
-				topic = "mirrorSwapStart"
+				zmqMessage["enemy"] = true
 			}
+			if !app.checkBalance(ctx, assetName, msg.Sender, amount) {
+				return
+			}
+			price, spread := extractPriceAndSpread(obj["msg"].(string))
+			zmqMessage["data"] = make(map[string]interface{})
+			zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
+			zmqMessage["data"].(map[string]interface{})["assetIn"] = pairName
+			zmqMessage["data"].(map[string]interface{})["amount"] = amount
+			zmqMessage["data"].(map[string]interface{})["maxSpread"] = spread
+			zmqMessage["data"].(map[string]interface{})["price"] = price
+			topic = "mirrorSwapStart"
 		} else {
 			return
 		}
