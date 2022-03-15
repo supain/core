@@ -195,6 +195,9 @@ func extractPriceAndSpread(msg string) (string, string) {
 	temp := make(map[string]map[string]string)
 	json.Unmarshal(sDec, &temp)
 	swapMsg := temp["swap"]
+	if swapMsg == nil {
+		return "1", "1"
+	}
 	return swapMsg["belief_price"], swapMsg["max_spread"]
 }
 
@@ -327,7 +330,7 @@ func (app *TerraApp) HandleMintTx(ctx sdk.Context, data, txBytes []byte) {
 	json.Unmarshal(data, &msgExecute)
 	if msgExecute["mint"] != nil {
 		idx := msgExecute["mint"].(map[string]interface{})["position_idx"].(string)
-		if !app.isShortPoistion(ctx, idx) {
+		if !app.isShortPosition(ctx, idx) {
 			return
 		}
 
@@ -424,9 +427,9 @@ func (app *TerraApp) getMirrorOraclePrice(ctx sdk.Context, address string) float
 	return oraclePrice
 }
 
-func (app *TerraApp) isShortPoistion(ctx sdk.Context, idx string) bool {
+func (app *TerraApp) isShortPosition(ctx sdk.Context, idx string) bool {
 	query := make(map[string]interface{})
-	query["poistion"] = make(map[string]interface{})
+	query["position"] = make(map[string]interface{})
 	query["position"].(map[string]interface{})["position_idx"] = idx
 	queryJson, _ := json.Marshal(query)
 
