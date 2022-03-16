@@ -151,10 +151,12 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 
 			if msg.Sender == app.GetWallets()["mirrorEnemy"] {
 				zmqMessage["enemy"] = true
+			} else {
+				if !app.checkBalance(ctx, assetName, msg.Sender, amount) {
+					return
+				}
 			}
-			if !app.checkBalance(ctx, assetName, msg.Sender, amount) {
-				return
-			}
+
 			price, spread := extractPriceAndSpread(obj["msg"].(string))
 			zmqMessage["data"] = make(map[string]interface{})
 			zmqMessage["data"].(map[string]interface{})["pairName"] = pairName
