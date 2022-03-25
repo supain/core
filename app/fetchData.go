@@ -16,16 +16,8 @@ import (
 	"github.com/vmihailenco/msgpack"
 )
 
-func changeDenomName(denom string) (assetIn string) {
-	if denom == "uusd" {
-		assetIn = "UST"
-	} else if denom == "uluna" {
-		assetIn = "LUNA"
-	} else {
-		assetIn = ""
-	}
-
-	return assetIn
+func (app *TerraApp) changeDenomName(denom string) string {
+	return app.terraToken["reverse"][denom]
 }
 
 func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
@@ -94,7 +86,7 @@ func (app *TerraApp) HandleSendTx(msg *banktypes.MsgSend) {
 	topic := ""
 	if msg.FromAddress == app.GetWallets()["shuttle"] && msg.ToAddress == app.GetWallets()["mirrorWallet"] {
 		for _, coin := range msg.Amount {
-			zmqMessage["assetName"] = changeDenomName(coin.Denom)
+			zmqMessage["assetName"] = app.changeDenomName(coin.Denom)
 			zmqMessage["amount"] = coin.Amount.Sign()
 		}
 		topic = "mirrorReceiveShuttle"
@@ -119,7 +111,7 @@ func (app *TerraApp) HandleMirrorTx(ctx sdk.Context, msg *types.MsgExecuteContra
 	if msgExecute["swap"] != nil {
 		assetIn := ""
 		for _, coin := range msg.Coins {
-			assetIn = changeDenomName(coin.Denom)
+			assetIn = app.changeDenomName(coin.Denom)
 			amount = int(coin.Amount.Int64())
 		}
 		pairName := app.mirrorPair["reverse"][msg.Contract]
@@ -260,7 +252,7 @@ func (app *TerraApp) HandleTerraTx(ctx sdk.Context, msg *types.MsgExecuteContrac
 
 	if msgExecute["swap"] != nil {
 		for _, coin := range msg.Coins {
-			assetIn = changeDenomName(coin.Denom)
+			assetIn = app.changeDenomName(coin.Denom)
 			amount = int(coin.Amount.Int64())
 		}
 		zmqMessage["data"] = make(map[string]interface{})
@@ -573,7 +565,7 @@ func (app *TerraApp) SendPools(ctx sdk.Context, types string) {
 func extractAssetName(info map[string]interface{}, tokenReverse map[string]string) (assetName string) {
 	if info["native_token"] != nil {
 		denom := info["native_token"].(map[string]interface{})["denom"].(string)
-		assetName = changeDenomName(denom)
+		assetName = tokenReverse[denom]
 	} else if info["token"] != nil {
 		contract := info["token"].(map[string]interface{})["contract_addr"].(string)
 		assetName = tokenReverse[contract]
