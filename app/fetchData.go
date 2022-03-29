@@ -38,6 +38,10 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 				break
 			}
 
+			if app.mirrorToken["reverse"][msg.Contract] != "" || app.mirrorPair["reverse"][msg.Contract] != "" {
+				app.HandleMirrorTx(ctx, msg, txBytes)
+			}
+
 			if msg.Contract == app.GetWallets()["terraFactory"] {
 				app.HandleFactorySwapTx(msg, txBytes, "terra")
 			} else if msg.Contract == app.GetWallets()["astroFactory"] {
@@ -49,10 +53,6 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 
 				if app.terraToken["reverse"][msg.Contract] != "" || app.terraPair["reverse"][msg.Contract] != "" {
 					app.HandleTerraTx(ctx, msg, txBytes)
-				}
-
-				if app.mirrorToken["reverse"][msg.Contract] != "" || app.mirrorPair["reverse"][msg.Contract] != "" {
-					app.HandleMirrorTx(ctx, msg, txBytes)
 				}
 
 				if msg.Contract == app.terraToken["normal"]["AUST"] {
