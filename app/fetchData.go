@@ -32,64 +32,44 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 
 		switch msg := msg.(type) {
 		case *banktypes.MsgSend:
-			go func(msg *banktypes.MsgSend, txBytes []byte) {
-				app.HandleSendTx(msg)
-			}(msg, txBytes)
+			app.HandleSendTx(msg)
 		case *wasmexported.MsgExecuteContract:
 			if msg.Sender == app.GetWallets()["mirrorWallet"] || msg.Sender == app.GetWallets()["terraWallet"] {
 				break
 			}
 
 			if app.mirrorToken["reverse"][msg.Contract] != "" || app.mirrorPair["reverse"][msg.Contract] != "" {
-				go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
-					app.HandleMirrorTx(ctx, msg, txBytes)
-				}(msg, txBytes)
+				app.HandleMirrorTx(ctx, msg, txBytes)
 			}
 
-			if msg.Contract == app.GetWallets()["terraFactory"] {
-				go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
-					app.HandleFactorySwapTx(msg, txBytes, "terra")
-				}(msg, txBytes)
+			if msg.Contract == app.terraToken["normal"]["AUST"] {
+				data, _ := msg.ExecuteMsg.MarshalJSON()
 
-			} else if msg.Contract == app.GetWallets()["astroFactory"] {
-				go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
-					app.HandleFactorySwapTx(msg, txBytes, "astro")
-				}(msg, txBytes)
+				msgExecute := make(map[string]interface{})
+				json.Unmarshal(data, &msgExecute)
+				if msgExecute["send"] == nil {
+					return
+				}
+
+				msg := msgExecute["send"].(map[string]interface{})["msg"].(string)
+				decodedData, _ := base64.StdEncoding.DecodeString(msg)
+				app.HandleMintTx(ctx, decodedData, txBytes)
 
 			} else if msg.Contract == app.GetWallets()["mintContract"] {
 				data, _ := msg.ExecuteMsg.MarshalJSON()
-				go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
-					app.HandleMintTx(ctx, data, txBytes)
-				}(msg, txBytes)
-			} else {
-
-				if app.terraToken["reverse"][msg.Contract] != "" || app.terraPair["reverse"][msg.Contract] != "" {
-					go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
-						app.HandleTerraTx(ctx, msg, txBytes)
-					}(msg, txBytes)
-				}
-
-				if msg.Contract == app.terraToken["normal"]["AUST"] {
-					data, _ := msg.ExecuteMsg.MarshalJSON()
-
-					msgExecute := make(map[string]interface{})
-					json.Unmarshal(data, &msgExecute)
-					if msgExecute["send"] == nil {
-						return
-					}
-
-					msg := msgExecute["send"].(map[string]interface{})["msg"].(string)
-					decodedData, _ := base64.StdEncoding.DecodeString(msg)
-					app.HandleMintTx(ctx, decodedData, txBytes)
-
-				}
+				app.HandleMintTx(ctx, data, txBytes)
 			}
 
-			if msg.Contract == app.GetWallets()["terraEnemy"] {
-				zmqMessage := make(map[string]interface{})
-				zmqMessage["hash"] = fmt.Sprintf("%X", tmhash.Sum(txBytes))
-				b, _ := msgpack.Marshal(zmqMessage)
-				app.ZmqSendMessage("terraEnemy", b)
+			if app.terraToken["reverse"][msg.Contract] != "" || app.terraPair["reverse"][msg.Contract] != "" {
+				app.HandleTerraTx(ctx, msg, txBytes)
+			}
+
+			if msg.Contract == app.GetWallets()["terraFactory"] {
+				app.HandleFactorySwapTx(msg, txBytes, "terra")
+
+			} else if msg.Contract == app.GetWallets()["astroFactory"] {
+				app.HandleFactorySwapTx(msg, txBytes, "astro")
+
 			}
 		}
 	}
