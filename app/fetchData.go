@@ -32,27 +32,41 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 
 		switch msg := msg.(type) {
 		case *banktypes.MsgSend:
-			app.HandleSendTx(msg)
+			go func(msg *banktypes.MsgSend, txBytes []byte) {
+				app.HandleSendTx(msg)
+			}(msg, txBytes)
 		case *wasmexported.MsgExecuteContract:
 			if msg.Sender == app.GetWallets()["mirrorWallet"] || msg.Sender == app.GetWallets()["terraWallet"] {
 				break
 			}
 
 			if app.mirrorToken["reverse"][msg.Contract] != "" || app.mirrorPair["reverse"][msg.Contract] != "" {
-				app.HandleMirrorTx(ctx, msg, txBytes)
+				go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
+					app.HandleMirrorTx(ctx, msg, txBytes)
+				}(msg, txBytes)
 			}
 
 			if msg.Contract == app.GetWallets()["terraFactory"] {
-				app.HandleFactorySwapTx(msg, txBytes, "terra")
+				go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
+					app.HandleFactorySwapTx(msg, txBytes, "terra")
+				}(msg, txBytes)
+
 			} else if msg.Contract == app.GetWallets()["astroFactory"] {
-				app.HandleFactorySwapTx(msg, txBytes, "astro")
+				go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
+					app.HandleFactorySwapTx(msg, txBytes, "astro")
+				}(msg, txBytes)
+
 			} else if msg.Contract == app.GetWallets()["mintContract"] {
 				data, _ := msg.ExecuteMsg.MarshalJSON()
-				app.HandleMintTx(ctx, data, txBytes)
+				go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
+					app.HandleMintTx(ctx, data, txBytes)
+				}(msg, txBytes)
 			} else {
 
 				if app.terraToken["reverse"][msg.Contract] != "" || app.terraPair["reverse"][msg.Contract] != "" {
-					app.HandleTerraTx(ctx, msg, txBytes)
+					go func(msg *wasmexported.MsgExecuteContract, txBytes []byte) {
+						app.HandleTerraTx(ctx, msg, txBytes)
+					}(msg, txBytes)
 				}
 
 				if msg.Contract == app.terraToken["normal"]["AUST"] {
