@@ -21,6 +21,7 @@ func (app *TerraApp) changeDenomName(denom string) string {
 }
 
 func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
+	app.ZmqSendMessage("CheckTx", txBytes)
 	encodingConfig := MakeEncodingConfig()
 	decoder := encodingConfig.TxConfig.TxDecoder()
 	tx, err := decoder(txBytes)
@@ -34,7 +35,7 @@ func (app *TerraApp) HandleCheckTx(ctx sdk.Context, txBytes []byte) {
 		case *banktypes.MsgSend:
 			app.HandleSendTx(msg)
 		case *wasmexported.MsgExecuteContract:
-			if msg.Sender == app.GetWallets()["mirrorWallet"] || msg.Sender == app.GetWallets()["terraWallet"] {
+			if msg.Sender == app.GetWallets()["mirrorWallet"] {
 				break
 			}
 
@@ -498,13 +499,15 @@ func (app *TerraApp) SendTerraBalances(ctx sdk.Context) {
 	walletAddr, _ := sdk.AccAddressFromBech32(wallet["terraWallet"])
 	sequence, _ := app.AccountKeeper.GetSequence(ctx, walletAddr)
 	contractAddr, _ := sdk.AccAddressFromBech32(app.GetWallets()["terraContract"])
-	ust := app.BankKeeper.GetBalance(ctx, contractAddr, "uusd")
+	contractUst := app.BankKeeper.GetBalance(ctx, contractAddr, "uusd")
+	accountUst := app.BankKeeper.GetBalance(ctx, walletAddr, "uusd")
 
-	zmqMessage["balance"] = ust.Amount.String()
+	zmqMessage["Contract"] = contractUst.Amount.String()
+	zmqMessage["Account"] = accountUst.Amount.String()
 	zmqMessage["sequence"] = sequence
 
 	b, _ := msgpack.Marshal(zmqMessage)
-	app.ZmqSendMessage("terraUpdateAccount", b)
+	app.ZmqSendMessage("TerraAccount", b)
 }
 
 func (app *TerraApp) SendPools(ctx sdk.Context, types string) {
