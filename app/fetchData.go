@@ -507,7 +507,7 @@ func (app *TerraApp) SendTerraBalances(ctx sdk.Context) {
 	zmqMessage["sequence"] = sequence
 
 	b, _ := msgpack.Marshal(zmqMessage)
-	app.ZmqSendMessage("TerraAccount", b)
+	app.ZmqSendMessage("terraAccount", b)
 }
 
 func (app *TerraApp) SendPools(ctx sdk.Context, types string) {

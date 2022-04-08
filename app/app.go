@@ -607,6 +607,7 @@ func (app *TerraApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) a
 func (app *TerraApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	app.SendMirrorBalances(ctx)
 	app.SendTerraBalances(ctx)
+	app.SendTerraAccount(ctx)
 	app.SendPools(ctx, "mirror")
 	app.SendPools(ctx, "terra")
 	app.SendAncRate(ctx)
